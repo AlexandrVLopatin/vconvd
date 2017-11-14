@@ -1,6 +1,7 @@
 package restserver
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 	"vconvd/logger"
@@ -14,15 +15,15 @@ var log = logger.Log
 
 type ConversionServiceConfig struct {
 	HTTPHost  string
-	HTTPPort  string
+	HTTPPort  int
 	NsqdHost  string
-	NsqdPort  string
+	NsqdPort  int
 	NsqdTopic string
 }
 
 type ConversionService struct {
 	config   *ConversionServiceConfig
-	producer *NsqpProducer
+	producer *NsqProducer
 
 	blockChan chan bool
 	doneChan  chan bool
@@ -35,19 +36,19 @@ func New(config *ConversionServiceConfig) *ConversionService {
 }
 
 func (c *ConversionService) Run() {
-	c.producer = &NsqpProducer{Host: c.config.NsqdHost, Port: c.config.NsqdPort, Log: true}
+	c.producer = &NsqProducer{Host: c.config.NsqdHost, Port: c.config.NsqdPort, Log: true}
 
 	err := c.producer.Setup()
 	if err != nil {
-		log.Fatal("Can not connect to nsqd")
+		log.Fatalf("Can not connect to nsqd at %s:%d", c.config.NsqdHost, c.config.NsqdPort)
 	} else {
-		log.Debugf("Succesfully connected to nsqd: %s:%s", c.config.NsqdHost, c.config.NsqdPort)
+		log.Debugf("Succesfully connected to nsqd: %s:%d", c.config.NsqdHost, c.config.NsqdPort)
 	}
 
 	c.register()
 
 	go func() {
-		http.ListenAndServe(c.config.HTTPHost+":"+c.config.HTTPPort, nil)
+		http.ListenAndServe(fmt.Sprintf("%s:%d", c.config.HTTPHost, c.config.HTTPPort), nil)
 	}()
 
 	<-c.blockChan
@@ -105,9 +106,10 @@ func (c *ConversionService) putTask(req *restful.Request, resp *restful.Response
 
 	err = c.producer.Nsqp.Publish("vconvd", data)
 	if err != nil {
+		log.Errorf("Failed to publish the task %s to the queue: %s", task.ID, err)
 		resp.WriteError(http.StatusInternalServerError, err)
-		log.Fatalf("Failed to publish the task %s to the queue: %s", task.ID, err)
 	} else {
+		log.Debugf("Pushed to nsqd a new task: %s", task.ID)
 		resp.WriteHeaderAndEntity(http.StatusCreated, task)
 	}
 }

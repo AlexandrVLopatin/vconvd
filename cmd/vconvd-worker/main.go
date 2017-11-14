@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"vconvd/logger"
+	"vconvd/worker"
 
 	"github.com/urfave/cli"
 )
@@ -22,6 +23,11 @@ func main() {
 			Name:  "nsqd-port",
 			Value: "4150",
 			Usage: "nsqd port",
+		},
+		cli.StringFlag{
+			Name:  "nsqd-topic",
+			Value: "vconvd",
+			Usage: "nsqd topic",
 		},
 		cli.StringFlag{
 			Name:  "log-file",
@@ -48,7 +54,7 @@ func main() {
 			logLevel = "INFO"
 		}
 
-		logger.SetupLogger(logger.Config{LogStderrDisable: c.Bool("log-stderr-disable"), LogFile: c.String("log-file"), LogLevel: logLevel})
+		logger.SetupLogger(logger.Config{LogFile: c.String("log-file"), LogLevel: logLevel})
 		if !c.Bool("log-stderr-disable") {
 			cli.ShowVersion(c)
 		}
@@ -58,6 +64,13 @@ func main() {
 	app.Action = func(c *cli.Context) error {
 		log.Infof("Starting worker")
 
+		config := &worker.Config{
+			NsqdHost:  c.String("nsqd-host"),
+			NsqdPort:  c.Int("nsqd-port"),
+			NsqdTopic: c.String("nsqd-topic"),
+		}
+		w := worker.Worker{Config: config}
+		w.Start()
 		return nil
 	}
 

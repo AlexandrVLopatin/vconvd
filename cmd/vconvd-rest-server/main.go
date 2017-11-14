@@ -11,8 +11,10 @@ import (
 	"github.com/urfave/cli"
 )
 
-var log = logger.Log
-var server *restserver.ConversionService
+var (
+	log    = logger.Log
+	server *restserver.ConversionService
+)
 
 func main() {
 	app := cli.NewApp()
@@ -23,9 +25,9 @@ func main() {
 			Value: "127.0.0.1",
 			Usage: "service host",
 		},
-		cli.StringFlag{
+		cli.IntFlag{
 			Name:  "port",
-			Value: "8089",
+			Value: 8089,
 			Usage: "service port",
 		},
 		cli.StringFlag{
@@ -33,9 +35,9 @@ func main() {
 			Value: "127.0.0.1",
 			Usage: "nsqd host",
 		},
-		cli.StringFlag{
+		cli.IntFlag{
 			Name:  "nsqd-port",
-			Value: "4150",
+			Value: 4150,
 			Usage: "nsqd port",
 		},
 		cli.StringFlag{
@@ -46,10 +48,6 @@ func main() {
 		cli.StringFlag{
 			Name:  "log-file",
 			Usage: "log to given file",
-		},
-		cli.BoolFlag{
-			Name:  "log-stderr-disable",
-			Usage: "disable log to stderr",
 		},
 		cli.BoolFlag{
 			Name:  "verbose",
@@ -68,7 +66,7 @@ func main() {
 			logLevel = "INFO"
 		}
 
-		logger.SetupLogger(logger.Config{LogStderrDisable: c.Bool("log-stderr-disable"), LogFile: c.String("log-file"), LogLevel: logLevel})
+		logger.SetupLogger(logger.Config{LogFile: c.String("log-file"), LogLevel: logLevel})
 		if !c.Bool("log-stderr-disable") {
 			cli.ShowVersion(c)
 		}
@@ -78,13 +76,13 @@ func main() {
 	app.Action = func(c *cli.Context) error {
 		setupSigHandlers()
 
-		log.Infof("Start listening on http://%s:%s", c.String("host"), c.String("port"))
+		log.Infof("Start listening on http://%s:%d", c.String("host"), c.Int("port"))
 
 		server = restserver.New(&restserver.ConversionServiceConfig{
 			HTTPHost:  c.String("host"),
-			HTTPPort:  c.String("port"),
+			HTTPPort:  c.Int("port"),
 			NsqdHost:  c.String("nsqd-host"),
-			NsqdPort:  c.String("nsqd-port"),
+			NsqdPort:  c.Int("nsqd-port"),
 			NsqdTopic: c.String("nsqd-topic"),
 		})
 
