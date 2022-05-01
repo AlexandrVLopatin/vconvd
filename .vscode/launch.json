@@ -1,0 +1,38 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch REST server",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${fileDirname}/../cmd/vconvd-rest-server/main.go",
+            "args": [
+                "--verbose"
+            ]
+        },
+        {
+            "name": "Launch Manager server",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${fileDirname}/../cmd/vconvd-manager/main.go",
+            "args": [
+                "--verbose"
+            ]
+        },
+        {
+            "name": "Launch Conversion Worker",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${fileDirname}/../cmd/vconvd-conversion-worker/main.go",
+            "args": [
+                "--verbose"
+            ]
+        }
+    ]
+}

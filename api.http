@@ -1,0 +1,12 @@
+@host = http://127.0.0.1:8089
+@contentType = application/json
+
+### Put task
+PUT {{host}}/
+content-type: {{contentType}}
+
+{
+  "id": "5",
+  "input_file": "/media/1tb/Видео/Dogville.HDTVRip.720p.x264.MIF.mkv"
+}
+make(chan bool),
