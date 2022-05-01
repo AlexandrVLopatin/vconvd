@@ -17,5 +17,6 @@ vconvd.log
 .history
 __debug_bin
 cmd/vconvd-manager/vconvd.bd
-vconvd-conversion-worker
-vconvd-manager
+cmd/vconvd-manager/vconvd-manager
+cmd/vconvd-conversion-worker/vconvd-conversion-worker
+cmd/vconvd-splitter-worker/vconvd-splitter-worker
