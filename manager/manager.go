@@ -44,6 +44,7 @@ type Manager struct {
 
 func New(config *Config) *Manager {
 	m := Manager{Config: config}
+
 	return &m
 }
 
@@ -151,6 +152,7 @@ func (m *Manager) registerConvWorkerTask(task *model.Task) {
 	defer task.Message.Finish()
 
 	var worker model.Worker
+	//TODO: it is not safe. replace this code with someting else
 	mapstructure.Decode(task.Data, &worker)
 
 	log.Infof("Registering worker %s", worker.ID)
@@ -204,15 +206,17 @@ func (m *Manager) CreateTask(convtask *model.ConversionTask) error {
 	cworkersCount := len(m.convworkers)
 
 	if cworkersCount == 0 {
-		return m.taskQueue(convtask)
+		return m.taskQueue(convtask, time.Second*5)
 	}
 
 	chunksLen, err := m.getChunksLength(convtask)
 	if err != nil {
+		m.taskQueue(convtask, time.Minute*10)
 		return fmt.Errorf("Can not probe video file: %s", err)
 	}
 	if chunksLen == 0 {
-		return fmt.Errorf("Got zero chunks length for some reason - ignoring the task")
+		m.taskQueue(convtask, time.Minute*10)
+		return fmt.Errorf("Got zero chunks length for some reason")
 	}
 
 	chunks := m.getChunks(cworkersCount, chunksLen)
@@ -220,12 +224,15 @@ func (m *Manager) CreateTask(convtask *model.ConversionTask) error {
 
 	err = m.dataStorage.CreateTask(convtask)
 	if err != nil {
+		m.taskQueue(convtask, time.Minute*10)
 		return fmt.Errorf("Failed to create task in the database: %s", err)
 	}
 
 	for _, chunk := range convtask.Chunks {
-		err = m.chunkQueue(chunk)
+		splitTask := model.SplitTask{InputFile: convtask.InputFile, Chunk: chunk}
+		err = m.chunkQueue(&splitTask)
 		if err != nil {
+			//TODO: remove the task completly
 			return fmt.Errorf("Can not queue a chunk: %s - removing the task", err)
 		}
 	}
@@ -254,11 +261,11 @@ func (m *Manager) getChunksLength(convtask *model.ConversionTask) (float64, erro
 	return chunklen, nil
 }
 
-func (m *Manager) getChunks(chunksCount int, chunksLen float64) []*model.ConversionTaskChunk {
-	var chunks []*model.ConversionTaskChunk
+func (m *Manager) getChunks(chunksCount int, chunksLen float64) []*model.Chunk {
+	var chunks []*model.Chunk
 
 	for i := 0; i < chunksCount; i++ {
-		var chunk *model.ConversionTaskChunk = new(model.ConversionTaskChunk)
+		var chunk *model.Chunk = new(model.Chunk)
 		chunk.Sequence = uint32(i) + 1
 		chunk.Offset = float64(i) * chunksLen
 		chunk.Length = chunksLen - 1
@@ -269,7 +276,7 @@ func (m *Manager) getChunks(chunksCount int, chunksLen float64) []*model.Convers
 	return chunks
 }
 
-func (m *Manager) taskQueue(convtask *model.ConversionTask) error {
+func (m *Manager) taskQueue(convtask *model.ConversionTask, delay time.Duration) error {
 	task := model.Task{Name: "conversion:put", Data: convtask}
 	data, err := msgpack.Marshal(task)
 	if err != nil {
@@ -277,7 +284,7 @@ func (m *Manager) taskQueue(convtask *model.ConversionTask) error {
 		return fmt.Errorf("Failed to marshal a task data to the msgpack format: %s", err)
 	}
 
-	err = m.producer.Nsqp.Publish(m.Config.NsqdManagerTopic, data)
+	err = m.producer.Nsqp.DeferredPublish(m.Config.NsqdManagerTopic, delay, data)
 	if err != nil {
 		log.Errorf("Failed to publish the task %s to the queue: %s", convtask.ID, err)
 	} else {
@@ -287,7 +294,7 @@ func (m *Manager) taskQueue(convtask *model.ConversionTask) error {
 	return fmt.Errorf("There is no active workers - delayed")
 }
 
-func (m *Manager) chunkQueue(chunk *model.ConversionTaskChunk) error {
+func (m *Manager) chunkQueue(chunk *model.SplitTask) error {
 	task := model.Task{Name: "conversion:split", Data: chunk}
 	data, err := msgpack.Marshal(task)
 	if err != nil {

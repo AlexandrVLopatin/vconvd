@@ -1,7 +1,6 @@
-package spliiterworker
+package splitterworker
 
 import (
-	"time"
 	"vconvd/lib"
 	"vconvd/logger"
 	"vconvd/model"
@@ -10,9 +9,7 @@ import (
 	"github.com/vmihailenco/msgpack"
 )
 
-var (
-	log = logger.Log
-)
+var log = logger.Log
 
 type Config struct {
 	NsqdHost  string
@@ -22,7 +19,7 @@ type Config struct {
 
 type SplitterWorker struct {
 	Config   *Config
-	Consumer *lib.NsqConsumer
+	consumer *lib.NsqConsumer
 	done     chan bool
 }
 
@@ -30,16 +27,19 @@ type messageHandler struct{}
 
 func (w *SplitterWorker) Start() {
 	w.done = make(chan bool)
-	w.Consumer = &lib.NsqConsumer{Host: w.Config.NsqdHost, Port: w.Config.NsqdPort, Topic: w.Config.NsqdTopic, Log: true}
+	w.consumer = &lib.NsqConsumer{Host: w.Config.NsqdHost, Port: w.Config.NsqdPort, Topic: w.Config.NsqdTopic, Log: true}
 
-	err := w.Consumer.Setup()
+	err := w.consumer.Setup()
 	if err != nil {
 		log.Fatalf("Can not setup nsqd consumer: %s", err)
 	}
 
-	w.Consumer.Nsqc.AddHandler(&messageHandler{})
+	w.consumer.Nsqc.AddHandler(nsq.HandlerFunc(func(message *nsq.Message) error {
+		w.handleMessage(message)
+		return nil
+	}))
 
-	err = w.Consumer.Connect()
+	err = w.consumer.Connect()
 	if err != nil {
 		log.Fatalf("Can not connect to nsqd at %s:%d %s", w.Config.NsqdHost, w.Config.NsqdPort, err)
 	} else {
@@ -53,8 +53,8 @@ func (w *SplitterWorker) Stop() {
 	w.done <- true
 }
 
-func (h *messageHandler) HandleMessage(m *nsq.Message) error {
-	var task model.ConversionTask
+func (w *SplitterWorker) handleMessage(m *nsq.Message) error {
+	var task model.Task
 	err := msgpack.Unmarshal(m.Body, &task)
 	if err != nil {
 		log.Errorf("Can not unmarshal a message: %s", err)
@@ -63,6 +63,14 @@ func (h *messageHandler) HandleMessage(m *nsq.Message) error {
 
 	log.Debugf("Got a message: %v", task)
 
-	time.Sleep(time.Second * 10)
+	switch task.Name {
+	case "conversion:split":
+		w.split(&task)
+
+	}
+	return nil
+}
+
+func (w *SplitterWorker) split(task *model.Task) error {
 	return nil
 }

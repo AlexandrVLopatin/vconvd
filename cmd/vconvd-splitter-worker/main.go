@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 	"vconvd/logger"
-	spliiterworker "vconvd/splitterworker"
+	"vconvd/splitterworker"
 
 	"github.com/urfave/cli"
 )
@@ -43,7 +43,7 @@ func main() {
 		},
 	}
 
-	app.Name = "vconvd-spliiter-worker"
+	app.Name = "vconvd-spliter-worker"
 	app.Version = "1.0.0"
 	app.Usage = "videoconvd splitter worker"
 	app.Before = func(c *cli.Context) error {
@@ -64,12 +64,12 @@ func main() {
 	app.Action = func(c *cli.Context) error {
 		log.Infof("Starting splitter worker")
 
-		config := &spliiterworker.Config{
+		config := &splitterworker.Config{
 			NsqdHost:  c.String("nsqd-host"),
 			NsqdPort:  c.Int("nsqd-port"),
 			NsqdTopic: c.String("nsqd-topic"),
 		}
-		w := spliiterworker.SplitterWorker{Config: config}
+		w := splitterworker.SplitterWorker{Config: config}
 		w.Start()
 		return nil
 	}

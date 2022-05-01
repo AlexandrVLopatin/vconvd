@@ -30,15 +30,20 @@ type ConversionTask struct {
 	FFMpegArgs    string                       `json:"ffmpeg_args"`
 	Thumbnails    []*ConversionTaskThumbnail   `json:"thumbnails"`
 	HTTPCallbacks *ConversionTaskHTTPCallbacks `json:"callbacks"`
-	Chunks        []*ConversionTaskChunk       `json:"chunks"`
+	Chunks        []*Chunk                     `json:"chunks"`
 }
 
-type ConversionTaskChunk struct {
+type Chunk struct {
 	Sequence uint32  `json:"sequence"`
 	Offset   float64 `json:"offset"`
 	Length   float64 `json:"length"`
 	File     string  `json:"file"`
 	Status   uint8   `json:"status"`
+}
+
+type SplitTask struct {
+	InputFile string `json:"input_file"`
+	Chunk     *Chunk `json:"chunk"`
 }
 
 const (
