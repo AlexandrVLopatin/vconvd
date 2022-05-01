@@ -23,22 +23,28 @@ type Task struct {
 }
 
 type ConversionTask struct {
-	ID            string                      `json:"id"`
-	ProducerID    string                      `json:"producer_id"`
-	InputFile     string                      `json:"input_file"`
-	OutputFile    string                      `json:"output_file"`
-	FFMpegArgs    string                      `json:"ffmpeg_args"`
-	Thumbnails    []ConversionTaskThumbnail   `json:"thumbnails"`
-	HTTPCallbacks ConversionTaskHTTPCallbacks `json:"callbacks"`
-	ChunksLength  float64                     `json:"chunks_length"`
-	Chunks       []ConversionTaskChunk       `json:"chunks"`
+	ID            string                       `json:"id"`
+	ProducerID    string                       `json:"producer_id"`
+	InputFile     string                       `json:"input_file"`
+	OutputFile    string                       `json:"output_file"`
+	FFMpegArgs    string                       `json:"ffmpeg_args"`
+	Thumbnails    []*ConversionTaskThumbnail   `json:"thumbnails"`
+	HTTPCallbacks *ConversionTaskHTTPCallbacks `json:"callbacks"`
+	Chunks        []*ConversionTaskChunk       `json:"chunks"`
 }
 
 type ConversionTaskChunk struct {
-	Sequence uint32 `json:"sequence"`
-	File     string `json:"file"`
-	Status   uint8  `json:"status"`
+	Sequence uint32  `json:"sequence"`
+	Offset   float64 `json:"offset"`
+	Length   float64 `json:"length"`
+	File     string  `json:"file"`
+	Status   uint8   `json:"status"`
 }
+
+const (
+	ChunkPendingStatus = iota
+	ChunkWorkingStatus = iota
+)
 
 type ConversionTaskThumbnail struct {
 	Size       uint   `json:"size"`

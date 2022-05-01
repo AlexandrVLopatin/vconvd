@@ -41,6 +41,11 @@ func main() {
 			Usage: "nsqd topic",
 		},
 		cli.StringFlag{
+			Name:  "nsqd-splitter-topic",
+			Value: "vconvd-splitter",
+			Usage: "nsqd topic",
+		},
+		cli.StringFlag{
 			Name:  "rest-host",
 			Value: "127.0.0.1",
 			Usage: "REST host",
@@ -96,6 +101,7 @@ func main() {
 			NsqdPort:            c.Int("nsqd-port"),
 			NsqdManagerTopic:    c.String("nsqd-manager-topic"),
 			NsqdConversionTopic: c.String("nsqd-conversion-topic"),
+			NsqdSplitterTopic:   c.String("nsqd-splitter-topic"),
 			RestHost:            c.String("rest-host"),
 			RestPort:            c.Int("rest-port"),
 			DbFile:              c.String("db-file"),

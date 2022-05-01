@@ -9,4 +9,3 @@ content-type: {{contentType}}
   "id": "5",
   "input_file": "/media/1tb/Видео/Dogville.HDTVRip.720p.x264.MIF.mkv"
 }
-make(chan bool),

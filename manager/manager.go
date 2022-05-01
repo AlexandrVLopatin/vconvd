@@ -95,7 +95,7 @@ func (m *Manager) Run() {
 		log.Debugf("Consumer succesfully connected to nsqd: %s:%d", m.Config.NsqdHost, m.Config.NsqdPort)
 	}
 
-	m.convWorkersGC()
+	go m.convWorkersGC()
 
 	m.rest = &Rest{manager: m, config: &RestConfig{
 		RestHost: m.Config.RestHost,
@@ -191,28 +191,20 @@ func (m *Manager) createTaskTask(task *model.Task) {
 
 	var convtask model.ConversionTask
 	mapstructure.Decode(task.Data, &convtask)
-	m.CreateTask(&convtask)
+	err := m.CreateTask(&convtask)
+	if err != nil {
+		log.Errorf("Failed to create the task: %s", err)
+	}
+
+	task.Message.Finish()
 }
 
 func (m *Manager) CreateTask(convtask *model.ConversionTask) error {
 	convtask.ID = uuid.New().String()
+	cworkersCount := len(m.convworkers)
 
-	if len(m.convworkers) == 0 {
-		task := model.Task{Name: "conversion:put", Data: convtask}
-		data, err := msgpack.Marshal(task)
-		if err != nil {
-			log.Errorf("Failed to marshal a task data to the msgpack format: %s", err)
-			return fmt.Errorf("Failed to marshal a task data to the msgpack format: %s", err)
-		}
-
-		err = m.producer.Nsqp.Publish(m.Config.NsqdManagerTopic, data)
-		if err != nil {
-			log.Errorf("Failed to publish the task %s to the queue: %s", convtask.ID, err)
-		} else {
-			log.Debugf("Pushed to nsqd a new task: %s", convtask.ID)
-		}
-
-		return fmt.Errorf("There is no active workers - delayed")
+	if cworkersCount == 0 {
+		return m.taskQueue(convtask)
 	}
 
 	chunksLen, err := m.getChunksLength(convtask)
@@ -223,13 +215,26 @@ func (m *Manager) CreateTask(convtask *model.ConversionTask) error {
 		return fmt.Errorf("Got zero chunks length for some reason - ignoring the task")
 	}
 
-	convtask.ChunksLength = chunksLen
+	chunks := m.getChunks(cworkersCount, chunksLen)
+	convtask.Chunks = chunks
+
 	err = m.dataStorage.CreateTask(convtask)
 	if err != nil {
 		return fmt.Errorf("Failed to create task in the database: %s", err)
 	}
 
+	for _, chunk := range convtask.Chunks {
+		err = m.chunkQueue(chunk)
+		if err != nil {
+			return fmt.Errorf("Can not queue a chunk: %s - removing the task", err)
+		}
+	}
+
 	return nil
+}
+
+func (m *Manager) removeTask(convtask *model.ConversionTask) {
+
 }
 
 func (m *Manager) getChunksLength(convtask *model.ConversionTask) (float64, error) {
@@ -249,23 +254,65 @@ func (m *Manager) getChunksLength(convtask *model.ConversionTask) (float64, erro
 	return chunklen, nil
 }
 
-func (m *Manager) removeTask(model.ConversionTask) {
+func (m *Manager) getChunks(chunksCount int, chunksLen float64) []*model.ConversionTaskChunk {
+	var chunks []*model.ConversionTaskChunk
 
+	for i := 0; i < chunksCount; i++ {
+		var chunk *model.ConversionTaskChunk = new(model.ConversionTaskChunk)
+		chunk.Sequence = uint32(i) + 1
+		chunk.Offset = float64(i) * chunksLen
+		chunk.Length = chunksLen - 1
+		chunk.Status = model.ChunkPendingStatus
+		chunks = append(chunks, chunk)
+	}
+
+	return chunks
+}
+
+func (m *Manager) taskQueue(convtask *model.ConversionTask) error {
+	task := model.Task{Name: "conversion:put", Data: convtask}
+	data, err := msgpack.Marshal(task)
+	if err != nil {
+		log.Errorf("Failed to marshal a task data to the msgpack format: %s", err)
+		return fmt.Errorf("Failed to marshal a task data to the msgpack format: %s", err)
+	}
+
+	err = m.producer.Nsqp.Publish(m.Config.NsqdManagerTopic, data)
+	if err != nil {
+		log.Errorf("Failed to publish the task %s to the queue: %s", convtask.ID, err)
+	} else {
+		log.Debugf("Pushed to nsqd a new task: %s", convtask.ID)
+	}
+
+	return fmt.Errorf("There is no active workers - delayed")
+}
+
+func (m *Manager) chunkQueue(chunk *model.ConversionTaskChunk) error {
+	task := model.Task{Name: "conversion:split", Data: chunk}
+	data, err := msgpack.Marshal(task)
+	if err != nil {
+		return err
+	}
+
+	err = m.producer.Nsqp.Publish(m.Config.NsqdSplitterTopic, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (m *Manager) convWorkersGC() {
-	go func() {
-		for true {
-			now := time.Now()
-			for _, worker := range m.convworkers {
-				diff := now.Sub(worker.LastPing)
-				if diff.Seconds() > 10 {
-					log.Debugf("Unregistering worker %d due to last ping time", worker.ID)
-					delete(m.convworkers, worker.ID)
-				}
+	for true {
+		now := time.Now()
+		for _, worker := range m.convworkers {
+			diff := now.Sub(worker.LastPing)
+			if diff.Seconds() > 10 {
+				log.Debugf("Unregistering worker %s due to last ping time", worker.ID)
+				delete(m.convworkers, worker.ID)
 			}
-
-			time.Sleep(time.Second * 5)
 		}
-	}()
+
+		time.Sleep(time.Second * 5)
+	}
 }

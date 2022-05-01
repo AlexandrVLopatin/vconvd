@@ -1,6 +1,7 @@
 package spliiterworker
 
 import (
+	"time"
 	"vconvd/lib"
 	"vconvd/logger"
 	"vconvd/model"
@@ -61,5 +62,7 @@ func (h *messageHandler) HandleMessage(m *nsq.Message) error {
 	}
 
 	log.Debugf("Got a message: %v", task)
+
+	time.Sleep(time.Second * 10)
 	return nil
 }
