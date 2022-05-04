@@ -34,7 +34,13 @@ type ConversionWorker struct {
 func (w *ConversionWorker) Register() {
 	w.done = make(chan bool)
 
-	w.consumer = &lib.NsqConsumer{Host: w.Config.NsqdHost, Port: w.Config.NsqdPort, Topic: w.Config.NsqdTopic, Log: true}
+	w.consumer = &lib.NsqConsumer{
+		Host:  w.Config.NsqdHost,
+		Port:  w.Config.NsqdPort,
+		Topic: w.Config.NsqdTopic,
+		Log:   true,
+	}
+
 	err := w.consumer.Setup()
 	if err != nil {
 		log.Fatalf("Can not setup nsqd consumer: %s", err)
@@ -47,17 +53,21 @@ func (w *ConversionWorker) Register() {
 
 	err = w.consumer.Connect()
 	if err != nil {
+		log.Fatalf("Can not connect consumer to nsqd at %s:%d %s", w.Config.NsqdHost, w.Config.NsqdPort, err)
+	} else {
+		log.Debugf("Consumer succesfully connected to nsqd: %s:%d", w.Config.NsqdHost, w.Config.NsqdPort)
+	}
+
+	w.producer = &lib.NsqProducer{
+		Host: w.Config.NsqdHost,
+		Port: w.Config.NsqdPort,
+		Log:  true,
+	}
+	err = w.producer.Setup()
+	if err != nil {
 		log.Fatalf("Can not connect producer to nsqd at %s:%d %s", w.Config.NsqdHost, w.Config.NsqdPort, err)
 	} else {
 		log.Debugf("Producer succesfully connected to nsqd: %s:%d", w.Config.NsqdHost, w.Config.NsqdPort)
-	}
-
-	w.producer = &lib.NsqProducer{Host: w.Config.NsqdHost, Port: w.Config.NsqdPort, Log: true}
-	err = w.producer.Setup()
-	if err != nil {
-		log.Fatalf("Can not connect consumer to nsqd at %s:%d", w.Config.NsqdHost, w.Config.NsqdPort)
-	} else {
-		log.Debugf("Consumer succesfully connected to nsqd: %s:%d", w.Config.NsqdHost, w.Config.NsqdPort)
 	}
 
 	worker := model.Worker{}

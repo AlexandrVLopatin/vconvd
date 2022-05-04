@@ -16,15 +16,17 @@ import (
 var log = logger.Log
 
 type Config struct {
-	NsqdHost  string
-	NsqdPort  int
-	NsqdTopic string
-	ChunkPath string
+	NsqdHost         string
+	NsqdPort         int
+	NsqdManagerTopic string
+	NsqdTopic        string
+	ChunkPath        string
 }
 
 type SplitterWorker struct {
 	Config   *Config
 	consumer *lib.NsqConsumer
+	producer *lib.NsqProducer
 	done     chan bool
 }
 
@@ -32,7 +34,13 @@ type messageHandler struct{}
 
 func (w *SplitterWorker) Start() {
 	w.done = make(chan bool)
-	w.consumer = &lib.NsqConsumer{Host: w.Config.NsqdHost, Port: w.Config.NsqdPort, Topic: w.Config.NsqdTopic, Log: true}
+
+	w.consumer = &lib.NsqConsumer{
+		Host:  w.Config.NsqdHost,
+		Port:  w.Config.NsqdPort,
+		Topic: w.Config.NsqdTopic,
+		Log:   true,
+	}
 
 	err := w.consumer.Setup()
 	if err != nil {
@@ -46,9 +54,21 @@ func (w *SplitterWorker) Start() {
 
 	err = w.consumer.Connect()
 	if err != nil {
-		log.Fatalf("Can not connect to nsqd at %s:%d %s", w.Config.NsqdHost, w.Config.NsqdPort, err)
+		log.Fatalf("Can not connect consumer to nsqd at %s:%d %s", w.Config.NsqdHost, w.Config.NsqdPort, err)
 	} else {
 		log.Debugf("Succesfully connected to nsqd: %s:%d", w.Config.NsqdHost, w.Config.NsqdPort)
+	}
+
+	w.producer = &lib.NsqProducer{
+		Host: w.Config.NsqdHost,
+		Port: w.Config.NsqdPort,
+		Log:  true,
+	}
+	err = w.producer.Setup()
+	if err != nil {
+		log.Fatalf("Can not connect producer to nsqd at %s:%d %s", w.Config.NsqdHost, w.Config.NsqdPort, err)
+	} else {
+		log.Debugf("Producer succesfully connected to nsqd: %s:%d", w.Config.NsqdHost, w.Config.NsqdPort)
 	}
 
 	<-w.done
@@ -68,9 +88,14 @@ func (w *SplitterWorker) handleMessage(m *nsq.Message) error {
 
 	log.Debugf("Got a message: %v", task)
 
+	err = nil
 	switch task.Name {
 	case "conversion:split":
-		w.split(&task)
+		err = w.split(&task)
+	}
+
+	if err != nil {
+		log.Errorf("%s", err)
 	}
 
 	return nil
@@ -87,9 +112,17 @@ func (w *SplitterWorker) split(task *model.Task) error {
 		filepath.Ext(splitTask.InputFile),
 	))
 
-	fmt.Print(path)
+	st := model.Task{Name: "splitter-worker:start", Data: model.SplitStartedTask{ID: splitTask.ID, ChunkFile: path}}
+	data, err := msgpack.Marshal(st)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal a SplitStartedTask to the msgpack format: %s", err)
+	}
+	err = w.producer.Nsqp.Publish(w.Config.NsqdManagerTopic, data)
+	if err != nil {
+		return fmt.Errorf("Failed to pubslish a SplitStartedTask to the queue: %s", err)
+	}
 
-	err := ffmpeg_go.
+	err = ffmpeg_go.
 		Input(splitTask.InputFile, ffmpeg_go.KwArgs{
 			"ss": splitTask.Chunk.Offset,
 			"t":  splitTask.Chunk.Length,
@@ -100,6 +133,20 @@ func (w *SplitterWorker) split(task *model.Task) error {
 		}).
 		ErrorToStdOut().
 		Run()
+
+	if err != nil {
+		return fmt.Errorf("Splitting error: %s", err)
+	}
+
+	ft := model.Task{Name: "splitter-worker:finish", Data: model.SplitFinishedTask{ID: splitTask.ID}}
+	data, err = msgpack.Marshal(ft)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal a SplitFinishTask to the msgpack format: %s", err)
+	}
+	err = w.producer.Nsqp.Publish(w.Config.NsqdManagerTopic, data)
+	if err != nil {
+		return fmt.Errorf("Failed to pubslish a SplitStartedTask to the queue: %s", err)
+	}
 
 	return err
 }

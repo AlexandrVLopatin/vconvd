@@ -47,7 +47,7 @@ func (d *DataStorage) CreateNewDb() error {
 	return d._db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucket([]byte("task"))
 		if err != nil {
-			return fmt.Errorf("create bucket: %s", err)
+			return fmt.Errorf("bucket creation error: %s", err)
 		}
 		return nil
 	})

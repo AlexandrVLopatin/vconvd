@@ -93,11 +93,9 @@ func (m *Manager) Run() {
 
 	err = m.consumer.Connect()
 	if err != nil {
-		log.Fatalf("Can not connect the consumer to nsqd at %s:%d %s",
-			m.Config.NsqdHost, m.Config.NsqdPort, err)
+		log.Fatalf("Can not connect the consumer to nsqd at %s:%d %s", m.Config.NsqdHost, m.Config.NsqdPort, err)
 	} else {
-		log.Debugf("Consumer succesfully connected to nsqd: %s:%d",
-			m.Config.NsqdHost, m.Config.NsqdPort)
+		log.Debugf("Consumer succesfully connected to nsqd: %s:%d", m.Config.NsqdHost, m.Config.NsqdPort)
 	}
 
 	go m.convWorkersGC()

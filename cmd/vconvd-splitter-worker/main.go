@@ -25,6 +25,11 @@ func main() {
 			Usage: "nsqd port",
 		},
 		cli.StringFlag{
+			Name:  "nsqd-manager-topic",
+			Value: "vconvd-manager",
+			Usage: "nsqd topic",
+		},
+		cli.StringFlag{
 			Name:  "nsqd-topic",
 			Value: "vconvd-splitter",
 			Usage: "nsqd topic",
@@ -70,10 +75,11 @@ func main() {
 		log.Infof("Starting splitter worker")
 
 		config := &splitterworker.Config{
-			NsqdHost:  c.String("nsqd-host"),
-			NsqdPort:  c.Int("nsqd-port"),
-			NsqdTopic: c.String("nsqd-topic"),
-			ChunkPath: c.String("chunk-path"),
+			NsqdHost:         c.String("nsqd-host"),
+			NsqdPort:         c.Int("nsqd-port"),
+			NsqdManagerTopic: c.String("nsqd-manager-topic"),
+			NsqdTopic:        c.String("nsqd-topic"),
+			ChunkPath:        c.String("chunk-path"),
 		}
 		w := splitterworker.SplitterWorker{Config: config}
 		w.Start()

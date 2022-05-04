@@ -52,6 +52,16 @@ type SplitTask struct {
 	Chunk     *Chunk `json:"chunk"`
 }
 
+type SplitStartedTask struct {
+	ID        string `json:"id"`
+	ChunkFile string `json:"chunk_file"`
+}
+
+type SplitFinishedTask struct {
+	ID        string `json:"id"`
+	ChunkFile string `json:"chunk_file"`
+}
+
 type ConversionTaskThumbnail struct {
 	Size       uint   `json:"size"`
 	Quality    byte   `json:"quality"`
