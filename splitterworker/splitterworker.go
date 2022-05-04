@@ -1,11 +1,15 @@
 package splitterworker
 
 import (
+	"fmt"
+	"path/filepath"
 	"vconvd/lib"
 	"vconvd/logger"
 	"vconvd/model"
 
+	"github.com/mitchellh/mapstructure"
 	nsq "github.com/nsqio/go-nsq"
+	ffmpeg_go "github.com/u2takey/ffmpeg-go"
 	"github.com/vmihailenco/msgpack"
 )
 
@@ -15,6 +19,7 @@ type Config struct {
 	NsqdHost  string
 	NsqdPort  int
 	NsqdTopic string
+	ChunkPath string
 }
 
 type SplitterWorker struct {
@@ -66,11 +71,35 @@ func (w *SplitterWorker) handleMessage(m *nsq.Message) error {
 	switch task.Name {
 	case "conversion:split":
 		w.split(&task)
-
 	}
+
 	return nil
 }
 
 func (w *SplitterWorker) split(task *model.Task) error {
-	return nil
+	var splitTask model.SplitTask
+	mapstructure.Decode(task.Data, &splitTask)
+
+	path := filepath.FromSlash(fmt.Sprintf("%s/%s_%d%s",
+		w.Config.ChunkPath,
+		splitTask.ID,
+		splitTask.Chunk.Sequence,
+		filepath.Ext(splitTask.InputFile),
+	))
+
+	fmt.Print(path)
+
+	err := ffmpeg_go.
+		Input(splitTask.InputFile, ffmpeg_go.KwArgs{
+			"ss": splitTask.Chunk.Offset,
+			"t":  splitTask.Chunk.Length,
+		}).
+		Output(path, ffmpeg_go.KwArgs{
+			"vcodec": "copy",
+			"acodec": "copy",
+		}).
+		ErrorToStdOut().
+		Run()
+
+	return err
 }

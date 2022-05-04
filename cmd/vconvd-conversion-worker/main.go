@@ -67,7 +67,7 @@ func main() {
 		return nil
 	}
 	app.Action = func(c *cli.Context) error {
-		log.Infof("Starting splitter worker")
+		log.Infof("Starting conversion worker")
 
 		config := &conversionworker.Config{
 			NsqdHost:         c.String("nsqd-host"),

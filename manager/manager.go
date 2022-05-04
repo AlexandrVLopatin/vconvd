@@ -67,9 +67,11 @@ func (m *Manager) Run() {
 	}
 	err := m.producer.Setup()
 	if err != nil {
-		log.Fatalf("Can not connect the producer to nsqd at %s:%d", m.Config.NsqdHost, m.Config.NsqdPort)
+		log.Fatalf("Can not connect the producer to nsqd at %s:%d",
+			m.Config.NsqdHost, m.Config.NsqdPort)
 	} else {
-		log.Debugf("Producer succesfully connected to nsqd: %s:%d", m.Config.NsqdHost, m.Config.NsqdPort)
+		log.Debugf("Producer succesfully connected to nsqd: %s:%d",
+			m.Config.NsqdHost, m.Config.NsqdPort)
 	}
 	defer m.producer.Stop()
 
@@ -91,9 +93,11 @@ func (m *Manager) Run() {
 
 	err = m.consumer.Connect()
 	if err != nil {
-		log.Fatalf("Can not connect the consumer to nsqd at %s:%d %s", m.Config.NsqdHost, m.Config.NsqdPort, err)
+		log.Fatalf("Can not connect the consumer to nsqd at %s:%d %s",
+			m.Config.NsqdHost, m.Config.NsqdPort, err)
 	} else {
-		log.Debugf("Consumer succesfully connected to nsqd: %s:%d", m.Config.NsqdHost, m.Config.NsqdPort)
+		log.Debugf("Consumer succesfully connected to nsqd: %s:%d",
+			m.Config.NsqdHost, m.Config.NsqdPort)
 	}
 
 	go m.convWorkersGC()
@@ -193,7 +197,7 @@ func (m *Manager) createTaskTask(task *model.Task) {
 
 	var convtask model.ConversionTask
 	mapstructure.Decode(task.Data, &convtask)
-	err := m.CreateTask(&convtask)
+	err := m.CreateConvTask(&convtask)
 	if err != nil {
 		log.Errorf("Failed to create the task: %s", err)
 	}
@@ -201,7 +205,7 @@ func (m *Manager) createTaskTask(task *model.Task) {
 	task.Message.Finish()
 }
 
-func (m *Manager) CreateTask(convtask *model.ConversionTask) error {
+func (m *Manager) CreateConvTask(convtask *model.ConversionTask) error {
 	convtask.ID = uuid.New().String()
 	cworkersCount := len(m.convworkers)
 
@@ -229,7 +233,11 @@ func (m *Manager) CreateTask(convtask *model.ConversionTask) error {
 	}
 
 	for _, chunk := range convtask.Chunks {
-		splitTask := model.SplitTask{InputFile: convtask.InputFile, Chunk: chunk}
+		splitTask := model.SplitTask{
+			ID:        convtask.ID,
+			InputFile: convtask.InputFile,
+			Chunk:     chunk,
+		}
 		err = m.chunkQueue(&splitTask)
 		if err != nil {
 			//TODO: remove the task completly

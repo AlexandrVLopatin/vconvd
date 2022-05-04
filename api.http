@@ -7,5 +7,9 @@ content-type: {{contentType}}
 
 {
   "id": "5",
-  "input_file": "/media/1tb/Видео/Dogville.HDTVRip.720p.x264.MIF.mkv"
+  "input_file": "/media/1tb/Видео/old/4rooms.1995.mkv",
+  "output_file": "/media/1tb/Видео/_conversion/1.mp4",
+  "ffmpeg_args": {
+    "c:v": "libx264"
+  }
 }

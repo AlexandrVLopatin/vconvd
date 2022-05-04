@@ -78,7 +78,7 @@ func (c *Rest) putTaskAction(w http.ResponseWriter, r *http.Request) {
 
 	log.Debugf("Put a new task: %s", convTask.ID)
 
-	err = c.manager.CreateTask(&convTask)
+	err = c.manager.CreateConvTask(&convTask)
 	if err != nil {
 		http.Error(w, string(err.Error()), 400)
 	}

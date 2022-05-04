@@ -5,16 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch REST server",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${fileDirname}/../cmd/vconvd-rest-server/main.go",
-            "args": [
-                "--verbose"
-            ]
-        },
-        {
             "name": "Launch Manager server",
             "type": "go",
             "request": "launch",
@@ -24,6 +14,16 @@
                 "--verbose"
             ]
         },
+        {
+            "name": "Launch Splitter Worker",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${fileDirname}/../cmd/vconvd-splitter-worker/main.go",
+            "args": [
+                "--verbose"
+            ]
+        }
         {
             "name": "Launch Conversion Worker",
             "type": "go",

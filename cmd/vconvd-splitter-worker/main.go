@@ -30,6 +30,11 @@ func main() {
 			Usage: "nsqd topic",
 		},
 		cli.StringFlag{
+			Name:  "chunk-path",
+			Value: "/tmp",
+			Usage: "chunk temp path",
+		},
+		cli.StringFlag{
 			Name:  "log-file",
 			Usage: "log to given file",
 		},
@@ -68,6 +73,7 @@ func main() {
 			NsqdHost:  c.String("nsqd-host"),
 			NsqdPort:  c.Int("nsqd-port"),
 			NsqdTopic: c.String("nsqd-topic"),
+			ChunkPath: c.String("chunk-path"),
 		}
 		w := splitterworker.SplitterWorker{Config: config}
 		w.Start()

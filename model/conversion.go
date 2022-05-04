@@ -27,11 +27,16 @@ type ConversionTask struct {
 	ProducerID    string                       `json:"producer_id"`
 	InputFile     string                       `json:"input_file"`
 	OutputFile    string                       `json:"output_file"`
-	FFMpegArgs    string                       `json:"ffmpeg_args"`
+	FFMpegArgs    map[string]string            `json:"ffmpeg_args"`
 	Thumbnails    []*ConversionTaskThumbnail   `json:"thumbnails"`
 	HTTPCallbacks *ConversionTaskHTTPCallbacks `json:"callbacks"`
 	Chunks        []*Chunk                     `json:"chunks"`
 }
+
+const (
+	ChunkPendingStatus = iota
+	ChunkWorkingStatus = iota
+)
 
 type Chunk struct {
 	Sequence uint32  `json:"sequence"`
@@ -42,14 +47,10 @@ type Chunk struct {
 }
 
 type SplitTask struct {
+	ID        string `json:"id"`
 	InputFile string `json:"input_file"`
 	Chunk     *Chunk `json:"chunk"`
 }
-
-const (
-	ChunkPendingStatus = iota
-	ChunkWorkingStatus = iota
-)
 
 type ConversionTaskThumbnail struct {
 	Size       uint   `json:"size"`
